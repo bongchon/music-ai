@@ -2,7 +2,8 @@ import sys
 from shutil import rmtree
 import shutil
 import json # Mangio fork using json for preset saving
-
+import datetime
+import unicodedata
 from glob import glob1
 from signal import SIGTERM
 import os
@@ -22,12 +23,13 @@ ffmpeg = lazyload('ffmpeg')
 np = lazyload("numpy")
 torch = lazyload('torch')
 re = lazyload('regex')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["no_proxy"] = "localhost, 127.0.0.1, ::1"
 import logging
 from random import shuffle
 from subprocess import Popen
-
+import easy_infer
 gr = lazyload("gradio")
 SF = lazyload("soundfile")
 SFWrite = SF.write
@@ -1275,7 +1277,17 @@ def note_to_hz(note_name):
     note_number = 12 * (octave - 4) + semitone
     frequency = 440.0 * (2.0 ** (1.0/12)) ** note_number
     return frequency
-    
+
+def save_to_wav(record_button):
+    if record_button is None:
+        pass
+    else:
+        path_to_file=record_button
+        new_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")+'.wav'
+        new_path='./audios/'+new_name
+        shutil.move(path_to_file,new_path)
+        return new_name
+        
 def save_to_wav2(dropbox):
     file_path = dropbox.name
     target_path = os.path.join('audios', os.path.basename(file_path))
@@ -1294,8 +1306,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
 
     default_weight = names[0] if names else '' # Set the first found weight as the preloaded model
 
-    with gr.Blocks(theme=UTheme, title='Mangio-RVC-Web 💻') as app:
-        gr.HTML("<h1> The Mangio-RVC-Fork 💻 </h1>")
+    with gr.Blocks(theme='JohnSmith9982/small_and_pretty', title="Applio") as app:
+        gr.HTML("<h1> 🍏 Applio (Mangio-RVC-Fork) </h1>")
         # gr.Markdown(
         #     value=i18n(
         #         "本软件以MIT协议开源, 作者不对软件具备任何控制力, 使用软件者、传播软件导出的声音者自负全责. <br>如不认可该条款, 则不能使用或引用软件包内任何代码和文件. 详见根目录<b>使用需遵守的协议-LICENSE.txt</b>."
@@ -1305,12 +1317,12 @@ def GradioSetup(UTheme=gr.themes.Soft()):
             with gr.TabItem(i18n("模型推理")):
                 with gr.Row():
                     sid0 = gr.Dropdown(label=i18n("推理音色"), choices=sorted(names), value=default_weight)
-                    refresh_button = gr.Button(i18n("Refresh Files"), variant="primary")
+                    refresh_button = gr.Button(i18n("刷新音色列表和索引路径"), variant="primary")
                     clean_button = gr.Button(i18n("卸载音色省显存"), variant="primary")
                     clean_button.click(fn=lambda: ({"value": "", "__type__": "update"}), inputs=[], outputs=[sid0])
 
                 
-                with gr.TabItem("Single"):
+                with gr.TabItem(i18n("单个")):
                     with gr.Row(): 
                         spk_item = gr.Slider(
                             minimum=0,
@@ -1326,13 +1338,15 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                     with gr.Group(): # Defines whole single inference option section
                         with gr.Row():
                             with gr.Column(): # First column for audio-related inputs
-                                dropbox = gr.File(label="Drop your audio here & hit the Refresh button")
+                                dropbox = gr.File(label=i18n("将音频拖到此处，然后点击刷新按钮"))
+                                record_button=gr.Audio(source="microphone", label=i18n("或录制音频"), type="filepath")
                                 input_audio0 = gr.Textbox(
                                     label=i18n("Manual path to the audio file to be processed"),
                                     value=os.path.join(now_dir, "audios", "someguy.mp3"),
+                                    visible=False
                                 )
                                 input_audio1 = gr.Dropdown(
-                                    label=i18n("Or instead select a file from the /audios/ folder"),
+                                    label=i18n("自动检测音频路径并从下拉菜单中选择："),
                                     choices=sorted(audio_paths),
                                     value='',
                                     interactive=True,
@@ -1343,12 +1357,14 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 
                                 dropbox.upload(fn=save_to_wav2, inputs=[dropbox], outputs=[input_audio0])
                                 dropbox.upload(fn=change_choices2, inputs=[], outputs=[input_audio1])
+                                record_button.change(fn=save_to_wav, inputs=[record_button], outputs=[input_audio0])
+                                record_button.change(fn=change_choices2, inputs=[], outputs=[input_audio1])
 
                             best_match_index_path1, _ = match_index(sid0.value) # Get initial index from default sid0 (first voice model in list)
 
                             with gr.Column(): # Second column for pitch shift and other options
                                 file_index2 = gr.Dropdown(
-                                    label="Detected path to your added.index file (adjust it wasn't automatically found)",
+                                    label=i18n("自动检测index路径,下拉式选择(dropdown)"),
                                     choices=get_indexes(),
                                     value=best_match_index_path1,
                                     interactive=True,
@@ -1372,13 +1388,13 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                     # Create a checkbox for advanced settings
                     advanced_settings_checkbox = gr.Checkbox(
                         value=False,
-                        label="Show Advanced Settings",
+                        label=i18n("高级设置"),
                         interactive=True,
                     )
                     
                     # Advanced settings container        
                     with gr.Column(visible=False) as advanced_settings: # Initially hidden
-                        with gr.Row(label = "Advanced Settings", open = False):
+                        with gr.Row(label = i18n("高级设置"), open = False):
                             with gr.Column():
                                 f0method0 = gr.Radio(
                                     label=i18n(
@@ -1407,8 +1423,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 )    
 
                                 minpitch_slider = gr.Slider(
-                                    label       = "Min pitch",
-                                    info        = "Specify minimal pitch for inference [HZ]",
+                                    label       = i18n("音高最小值"),
+                                    info        = i18n("指定推断的最小音高 [HZ]"),
                                     step        = 0.1,
                                     minimum     = 1,
                                     scale       = 0,
@@ -1418,16 +1434,16 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     visible     = (not rvc_globals.NotesOrHertz) and (f0method0.value != 'rmvpe'),
                                 )
                                 minpitch_txtbox = gr.Textbox(
-                                    label       = "Min pitch",
-                                    info        = "Specify minimal pitch for inference [NOTE][OCTAVE]",
+                                    label       = i18n("音高最小值"),
+                                    info        = i18n("为推断指定最小音高 [音符][八度]"),
                                     placeholder = "C5",
                                     visible     = (rvc_globals.NotesOrHertz) and (f0method0.value != 'rmvpe'),
                                     interactive = True,
                                 )
 
                                 maxpitch_slider = gr.Slider(
-                                    label       = "Max pitch",
-                                    info        = "Specify max pitch for inference [HZ]",
+                                    label       = i18n("音高最大值"),
+                                    info        = i18n("指定推断的最大音高 [HZ]"),
                                     step        = 0.1,
                                     minimum     = 1,
                                     scale       = 0,
@@ -1437,8 +1453,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     visible     = (not rvc_globals.NotesOrHertz) and (f0method0.value != 'rmvpe'),
                                 )
                                 maxpitch_txtbox = gr.Textbox(
-                                    label       = "Max pitch",
-                                    info        = "Specify max pitch for inference [NOTE][OCTAVE]",
+                                    label       = i18n("音高最大值"),
+                                    info        = i18n("为推断指定最大音高 [音符][八度]"),
                                     placeholder = "C6",
                                     visible     = (rvc_globals.NotesOrHertz) and (f0method0.value != 'rmvpe'),
                                     interactive = True,
@@ -1451,7 +1467,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     interactive=True,
                                 )
                             
-                                with gr.Accordion(label = "Custom f0 [Root pitch] File", open = False):
+                                with gr.Accordion(label = i18n("自定义 f0 [根音] 文件"), open = False):
                                     f0_file = gr.File(label=i18n("F0曲线文件, 可选, 一行一个音高, 代替默认F0及升降调"))
 
                             f0method0.change(
@@ -1500,8 +1516,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 )
                                 formanting = gr.Checkbox(
                                     value=bool(DoFormant),
-                                    label="Formant shift inference audio",
-                                    info="Used for male to female and vice-versa conversions",
+                                    label=i18n("共振声移动推理音频"),
+                                    info=i18n("用于将男性转换为女性，反之亦然"),
                                     interactive=True,
                                     visible=True,
                                 )
@@ -1509,8 +1525,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 formant_preset = gr.Dropdown(
                                     value='',
                                     choices=get_fshift_presets(),
-                                    label='Browse presets for formanting',
-                                    info='Presets are located in formantshiftcfg/ folder',
+                                    label=i18n("浏览共振峰预设"),
+                                    info=i18n("预设位于 formantshiftcfg/ 文件夹中"),
                                     visible=bool(DoFormant),
                                 )
                                 
@@ -1522,8 +1538,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 
                                 qfrency = gr.Slider(
                                         value=Quefrency,
-                                        info="Default value is 1.0",
-                                        label="Quefrency for formant shifting",
+                                        info=i18n("默认值为 1.0"),
+                                        label=i18n("用于共振峰变换的 Quefrency"),
                                         minimum=0.0,
                                         maximum=16.0,
                                         step=0.1,
@@ -1533,15 +1549,15 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     
                                 tmbre = gr.Slider(
                                     value=Timbre,
-                                    info="Default value is 1.0",
-                                    label="Timbre for formant shifting",
+                                    info=i18n("默认值为 1.0"),
+                                    label=i18n("用于共振峰变换的音色"),
                                     minimum=0.0,
                                     maximum=16.0,
                                     step=0.1,
                                     visible=bool(DoFormant),
                                     interactive=True,
                                 )
-                                frmntbut = gr.Button("Apply", variant="primary", visible=bool(DoFormant))
+                                frmntbut = gr.Button(i18n("应用"), variant="primary", visible=bool(DoFormant))
 
                             formant_preset.change(fn=preset_apply, inputs=[formant_preset, qfrency, tmbre], outputs=[qfrency, tmbre])
                             
@@ -1592,7 +1608,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                             )
                            
                     
-                with gr.TabItem("Batch"):
+                with gr.TabItem(i18n("批处理")):
                     with gr.Group(): # Markdown explanation of batch inference
                         gr.Markdown(
                             value=i18n("批量转换, 输入待转换音频文件夹, 或上传多个音频文件, 在指定文件夹(默认opt)下输出转换的音频. ")
@@ -1638,13 +1654,13 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 # Create a checkbox for advanced batch settings
                                 advanced_settings_batch_checkbox = gr.Checkbox(
                                     value=False,
-                                    label="Show Advanced Settings",
+                                    label=i18n("高级设置"),
                                     interactive=True,
                                 )
                             
                                 # Advanced batch settings container        
                                 with gr.Row(visible=False) as advanced_settings_batch: # Initially hidden
-                                    with gr.Row(label = "Advanced Settings [Batch]", open = False):
+                                    with gr.Row(label = i18n("高级设置[批量]"), open = False):
                                         with gr.Column():
                                             file_index3 = gr.Textbox(
                                                 label=i18n("特征检索库文件路径,为空则使用下拉的选择结果"),
@@ -1821,7 +1837,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                     )
                 )
                 with gr.Row():
-                    exp_dir1 = gr.Textbox(label=i18n("输入实验名"), value="mi-test")
+                    exp_dir1 = gr.Textbox(label=i18n("输入实验名"), value=i18n("宓模型"))
                     sr2 = gr.Radio(
                         label=i18n("目标采样率"),
                         choices=["40k", "48k", "32k"],
@@ -1829,7 +1845,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                         interactive=True,
                     )
                     if_f0_3 = gr.Checkbox(
-                        label="Whether the model has pitch guidance.",
+                        label=i18n("模型是否具有俯仰引导功能"),
                         value=True,
                         interactive=True,
                     )
@@ -1927,16 +1943,16 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                             maximum=50,
                             step=1,
                             label=i18n("保存频率save_every_epoch"),
-                            value=5,
+                            value=10,
                             interactive=True,
                             visible=True,
                         )
                         total_epoch11 = gr.Slider(
                             minimum=1,
                             maximum=10000,
-                            step=1,
+                            step=2,
                             label=i18n("总训练轮数total_epoch"),
-                            value=20,
+                            value=750,
                             interactive=True,
                         )
                         batch_size12 = gr.Slider(
@@ -1948,17 +1964,17 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                             interactive=True,
                         )
                         if_save_latest13 = gr.Checkbox(
-                            label="Whether to save only the latest .ckpt file to save hard drive space",
+                            label=i18n("是否只保存最新的 .ckpt 文件以节省硬盘空间"),
                             value=True,
                             interactive=True,
                         )
                         if_cache_gpu17 = gr.Checkbox(
-                            label="Cache all training sets to GPU memory. Caching small datasets (less than 10 minutes) can speed up training, but caching large datasets will consume a lot of GPU memory and may not provide much speed improvement",
+                            label=i18n("将所有训练集缓存到 GPU 内存中。缓存小型数据集（少于 10 分钟）可以加快训练速度，但缓存大型数据集会消耗大量 GPU 内存，可能无法显著提高速度"),
                             value=False,
                             interactive=True,
                         )
                         if_save_every_weights18 = gr.Checkbox(
-                            label="Save a small final model to the 'weights' folder at each save point",
+                            label=i18n("在每个保存点将一个小的最终模型保存到 权重 文件夹中"),
                             value=True,
                             interactive=True,
                         )
@@ -2010,8 +2026,16 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                         but3.click(fn=stoptraining, inputs=[gr.Number(value=0, visible=False)], outputs=[but3, butstop])
                         butstop.click(fn=stoptraining, inputs=[gr.Number(value=1, visible=False)], outputs=[but3, butstop])
                         
+                        with gr.Column(scale=0):
+                            gr.Markdown(value="<br>")
+                            gr.Markdown(value="### " + i18n("保存前构建索引。"))
+                            but4 = gr.Button(i18n("训练特征索引"), variant="primary")
+                            gr.Markdown(value="### " + i18n("训练结束后保存您的模型。"))
+                            save_action = gr.Dropdown(label=i18n("存储类型"), choices=[i18n("保存所有"),i18n("保存 D 和 G"),i18n("保存声音")], value=i18n("选择模型保存方法"), interactive=True)
+                            but7 = gr.Button(i18n("保存模型"), variant="primary")
                         
-                        but4 = gr.Button(i18n("训练特征索引"), variant="primary")
+                    
+                      # but4 = gr.Button(i18n("训练特征索引"), variant="primary")
                         info3 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=10)
                         
                         if_save_every_weights18.change(
@@ -2047,15 +2071,14 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                         )
                             
                         but4.click(train_index, [exp_dir1, version19], info3)
+                        but7.click(easy_infer.save_model, [exp_dir1, save_action], info3)
                 with gr.Group():
-                    gr.Markdown(value=
-                        'Step 4: Export lowest points on a graph of the model '
-                        'After clicking on Export lowest points of a model, '
-                        'The new files will be located in logs/[yourmodelname]/lowestvals/ folder'
+                    gr.Markdown(value=i18n(
+                        '步骤4：单击模型的导出最低点后，在模型图上的导出最低点，新文件将位于logs/[yourmodelname]/lowestvals/folder中')
                     )
                     
                     with gr.Row():
-                        with gr.Accordion(label='Lowest points export'):
+                        with gr.Accordion(label=i18n("最低点导出")):
                         
                             lowestval_weight_dir = gr.Textbox(visible=False)
                             ds = gr.Textbox(visible=False)
@@ -2066,24 +2089,24 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 amntlastmdls = gr.Slider(
                                     minimum=1,
                                     maximum=25,
-                                    label='How many lowest points to save',
+                                    label=i18n('保存多少个最低点'),
                                     value=3,
                                     step=1,
                                     interactive=True,
                                 )
                                 lpexport = gr.Button(
-                                    value='Export lowest points of a model',
+                                    value=i18n('导出模型的最低点'),
                                     variant='primary',
                                 )
                                 lw_mdls = gr.File(
                                     file_count="multiple",
-                                    label="Output models",
+                                    label=i18n("输出型号"),
                                     interactive=False,
                                 ) #####
                                 
                             with gr.Row():
-                                infolpex = gr.Textbox(label="Output information:", value="", max_lines=10)
-                                mdlbl = gr.Dataframe(label='Stats of selected models', datatype='number', type='pandas')
+                                infolpex = gr.Textbox(label=i18n("输出信息"), value="", max_lines=10)
+                                mdlbl = gr.Dataframe(label=i18n('所选模型的统计数据'), datatype='number', type='pandas')
                             
                             lpexport.click(
                                 lambda model_name: os.path.join("logs", model_name, "lowestvals"),
@@ -2098,161 +2121,167 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 inputs=[exp_dir1, ds, weights_dir1, lowestval_weight_dir],
                                 outputs=[infolpex, lw_mdls, mdlbl],
                             )    
-            with gr.TabItem(i18n("ckpt处理")):
-                with gr.Group():
-                    gr.Markdown(value=i18n("模型融合, 可用于测试音色融合"))
-                    with gr.Row():
-                        ckpt_a = gr.Textbox(label=i18n("A模型路径"), value="", interactive=True, placeholder="Path to your model A.")
-                        ckpt_b = gr.Textbox(label=i18n("B模型路径"), value="", interactive=True, placeholder="Path to your model B.")
-                        alpha_a = gr.Slider(
-                            minimum=0,
-                            maximum=1,
-                            label=i18n("A模型权重"),
-                            value=0.5,
-                            interactive=True,
-                        )
-                    with gr.Row():
-                        sr_ = gr.Radio(
-                            label=i18n("目标采样率"),
-                            choices=["40k", "48k"],
-                            value="40k",
-                            interactive=True,
-                        )
-                        if_f0_ = gr.Checkbox(
-                            label="Whether the model has pitch guidance.",
-                            value=True,
-                            interactive=True,
-                        )
-                        info__ = gr.Textbox(
-                            label=i18n("要置入的模型信息"), value="", max_lines=8, interactive=True, placeholder="Model information to be placed."
-                        )
-                        name_to_save0 = gr.Textbox(
-                            label=i18n("保存的模型名不带后缀"),
-                            value="",
-                            placeholder="Name for saving.",
-                            max_lines=1,
-                            interactive=True,
-                        )
-                        version_2 = gr.Radio(
-                            label=i18n("模型版本型号"),
-                            choices=["v1", "v2"],
-                            value="v1",
-                            interactive=True,
-                        )
-                    with gr.Row():
-                        but6 = gr.Button(i18n("融合"), variant="primary")
-                        info4 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
-                    but6.click(
-                        merge,
-                        [
-                            ckpt_a,
-                            ckpt_b,
-                            alpha_a,
-                            sr_,
-                            if_f0_,
-                            info__,
-                            name_to_save0,
-                            version_2,
-                        ],
-                        info4,
-                    )  # def merge(path1,path2,alpha1,sr,f0,info):
-                with gr.Group():
-                    gr.Markdown(value=i18n("修改模型信息(仅支持weights文件夹下提取的小模型文件)"))
-                    with gr.Row(): ######
-                        ckpt_path0 = gr.Textbox(
-                            label=i18n("模型路径"), placeholder="Path to your Model.", value="", interactive=True
-                        )
-                        info_ = gr.Textbox(
-                            label=i18n("要改的模型信息"), value="", max_lines=8, interactive=True, placeholder="Model information to be changed."
-                        )
-                        name_to_save1 = gr.Textbox(
-                            label=i18n("保存的文件名, 默认空为和源文件同名"),
-                            placeholder="Either leave empty or put in the Name of the Model to be saved.",
-                            value="",
-                            max_lines=8,
-                            interactive=True,
-                        )
-                    with gr.Row():
-                        but7 = gr.Button(i18n("修改"), variant="primary")
-                        info5 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
-                    but7.click(change_info, [ckpt_path0, info_, name_to_save1], info5)
-                with gr.Group():
-                    gr.Markdown(value=i18n("查看模型信息(仅支持weights文件夹下提取的小模型文件)"))
-                    with gr.Row():
-                        ckpt_path1 = gr.Textbox(
-                            label=i18n("模型路径"), value="", interactive=True, placeholder="Model path here."
-                        )
-                        but8 = gr.Button(i18n("查看"), variant="primary")
-                        info6 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
-                    but8.click(show_info, [ckpt_path1], info6)
-                with gr.Group():
-                    gr.Markdown(
-                        value=i18n(
-                            "模型提取(输入logs文件夹下大文件模型路径),适用于训一半不想训了模型没有自动提取保存小文件模型,或者想测试中间模型的情况"
-                        )
-                    )
-                    with gr.Row():
-                        ckpt_path2 = gr.Textbox(
-                            lines=3,
-                            label=i18n("模型路径"),
-                            value=os.path.join(now_dir, "logs", "[YOUR_MODEL]", "G_23333.pth"),
-                            interactive=True,
-                        )
-                        save_name = gr.Textbox(
-                            label=i18n("保存名"), value="", interactive=True,
-                            placeholder="Your filename here.",
-                        )
-                        sr__ = gr.Radio(
-                            label=i18n("目标采样率"),
-                            choices=["32k", "40k", "48k"],
-                            value="40k",
-                            interactive=True,
-                        )
-                        if_f0__ = gr.Checkbox(
-                            label="Whether the model has pitch guidance.",
-                            value=True,
-                            interactive=True,
-                        )
-                        version_1 = gr.Radio(
-                            label=i18n("模型版本型号"),
-                            choices=["v1", "v2"],
-                            value="v2",
-                            interactive=True,
-                        )
-                        info___ = gr.Textbox(
-                            label=i18n("要置入的模型信息"), value="", max_lines=8, interactive=True, placeholder="Model info here."
-                        )
-                        but9 = gr.Button(i18n("提取"), variant="primary")
-                        info7 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
-                        ckpt_path2.change(
-                            change_info_, [ckpt_path2], [sr__, if_f0__, version_1]
-                        )
-                    but9.click(
-                        extract_small_model,
-                        [ckpt_path2, save_name, sr__, if_f0__, info___, version_1],
-                        info7,
-                    )
+          # with gr.TabItem(i18n("ckpt处理")):
+          #     with gr.Group():
+          #         gr.Markdown(value=i18n("模型融合, 可用于测试音色融合"))
+          #         with gr.Row():
+          #             ckpt_a = gr.Textbox(label=i18n("A模型路径"), value="", interactive=True, placeholder="Path to your model A.")
+          #             ckpt_b = gr.Textbox(label=i18n("B模型路径"), value="", interactive=True, placeholder="Path to your model B.")
+          #             alpha_a = gr.Slider(
+          #                 minimum=0,
+          #                 maximum=1,
+          #                 label=i18n("A模型权重"),
+          #                 value=0.5,
+          #                 interactive=True,
+          #             )
+          #         with gr.Row():
+          #             sr_ = gr.Radio(
+          #                 label=i18n("目标采样率"),
+          #                 choices=["40k", "48k"],
+          #                 value="40k",
+          #                 interactive=True,
+          #             )
+          #             if_f0_ = gr.Checkbox(
+          #                 label=i18n("模型是否具有俯仰引导功能"),
+          #                 value=True,
+          #                 interactive=True,
+          #             )
+          #             info__ = gr.Textbox(
+          #                 label=i18n("要置入的模型信息"), value="", max_lines=8, interactive=True, placeholder="Model information to be placed."
+          #             )
+          #             name_to_save0 = gr.Textbox(
+          #                 label=i18n("保存的模型名不带后缀"),
+          #                 value="",
+          #                 placeholder="Name for saving.",
+          #                  max_lines=1,
+          #                 interactive=True,
+          #             )
+          #             version_2 = gr.Radio(
+          #                 label=i18n("模型版本型号"),
+          #                 choices=["v1", "v2"],
+          #                 value="v1",
+          #                 interactive=True,
+          #             )
+          #         with gr.Row():
+          #             but6 = gr.Button(i18n("融合"), variant="primary")
+          #             info4 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
+          #         but6.click(
+          #             merge,
+          #             [
+          #                 ckpt_a,
+          #                 ckpt_b,
+          #                 alpha_a,
+          #                 sr_,
+          #                 if_f0_,
+          #                 info__,
+          #                 name_to_save0,
+          #                 version_2,
+          #             ],
+          #             info4,
+          #         )  # def merge(path1,path2,alpha1,sr,f0,info):
+          #     with gr.Group():
+          #         gr.Markdown(value=i18n("修改模型信息(仅支持weights文件夹下提取的小模型文件)"))
+          #         with gr.Row(): ######
+          #             ckpt_path0 = gr.Textbox(
+          #                 label=i18n("模型路径"), placeholder="Path to your Model.", value="", interactive=True
+          #             )
+          #             info_ = gr.Textbox(
+          #                 label=i18n("要改的模型信息"), value="", max_lines=8, interactive=True, placeholder="Model information to be changed."
+          #             )
+          #             name_to_save1 = gr.Textbox(
+          #                 label=i18n("保存的文件名, 默认空为和源文件同名"),
+          #                 placeholder="Either leave empty or put in the Name of the Model to be saved.",
+          #                 value="",
+          #                 max_lines=8,
+          #                 interactive=True,
+          #             )
+          #         with gr.Row():
+          #             but7 = gr.Button(i18n("修改"), variant="primary")
+          #             info5 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
+          #         but7.click(change_info, [ckpt_path0, info_, name_to_save1], info5)
+          #     with gr.Group():
+          #         gr.Markdown(value=i18n("查看模型信息(仅支持weights文件夹下提取的小模型文件)"))
+          #         with gr.Row():
+          #             ckpt_path1 = gr.Textbox(
+          #                 label=i18n("模型路径"), value="", interactive=True, placeholder="Model path here."
+          #             )
+          #             but8 = gr.Button(i18n("查看"), variant="primary")
+          #             info6 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
+          #         but8.click(show_info, [ckpt_path1], info6)
+          #     with gr.Group():
+          #         gr.Markdown(
+          #             value=i18n(
+          #                 "模型提取(输入logs文件夹下大文件模型路径),适用于训一半不想训了模型没有自动提取保存小文件模型,或者想测试中间模型的情况"
+          #             )
+          #         )
+          #         with gr.Row():
+          #             ckpt_path2 = gr.Textbox(
+          #                 lines=3,
+          #                 label=i18n("模型路径"),
+          #                 value=os.path.join(now_dir, "logs", "[YOUR_MODEL]", "G_23333.pth"),
+          #                 interactive=True,
+          #             )
+          #             save_name = gr.Textbox(
+          #                 label=i18n("保存名"), value="", interactive=True,
+          #                 placeholder="Your filename here.",
+          #             )
+          #             sr__ = gr.Radio(
+          #                 label=i18n("目标采样率"),
+          #                 choices=["32k", "40k", "48k"],
+          #                 value="40k",
+          #                 interactive=True,
+          #             )
+          #             if_f0__ = gr.Checkbox(
+          #                 label=i18n("模型是否具有俯仰引导功能"),
+          #                 value=True,
+          #                 interactive=True,
+          #             )
+          #             version_1 = gr.Radio(
+          #                 label=i18n("模型版本型号"),
+          #                 choices=["v1", "v2"],
+          #                 value="v2",
+          #                 interactive=True,
+          #             )
+          #             info___ = gr.Textbox(
+          #                 label=i18n("要置入的模型信息"), value="", max_lines=8, interactive=True, placeholder="Model info here."
+          #             )
+          #             but9 = gr.Button(i18n("提取"), variant="primary")
+          #             info7 = gr.Textbox(label=i18n("输出信息"), value="", max_lines=8)
+          #             ckpt_path2.change(
+          #                 change_info_, [ckpt_path2], [sr__, if_f0__, version_1]
+          #             )
+          #         but9.click(
+          #             extract_small_model,
+          #             [ckpt_path2, save_name, sr__, if_f0__, info___, version_1],
+          #             info7,
+          #         )
 
-            with gr.TabItem(i18n("Onnx导出")):
-                with gr.Row():
-                    ckpt_dir = gr.Textbox(label=i18n("RVC模型路径"), value="", interactive=True, placeholder="RVC model path.")
-                with gr.Row():
-                    onnx_dir = gr.Textbox(
-                        label=i18n("Onnx输出路径"), value="", interactive=True, placeholder="Onnx model output path."
-                    )
-                with gr.Row():
-                    infoOnnx = gr.Label(label="info")
-                with gr.Row():
-                    butOnnx = gr.Button(i18n("导出Onnx模型"), variant="primary")
-                butOnnx.click(export_onnx, [ckpt_dir, onnx_dir], infoOnnx)
+          # with gr.TabItem(i18n("Onnx导出")):
+          #     with gr.Row():
+          #         ckpt_dir = gr.Textbox(label=i18n("RVC模型路径"), value="", interactive=True, placeholder="RVC model path.")
+          #     with gr.Row():
+          #         onnx_dir = gr.Textbox(
+          #             label=i18n("Onnx输出路径"), value="", interactive=True, placeholder="Onnx model output path."
+          #         )
+          #     with gr.Row():
+          #         infoOnnx = gr.Label(label="info")
+          #     with gr.Row():
+          #         butOnnx = gr.Button(i18n("导出Onnx模型"), variant="primary")
+          #     butOnnx.click(export_onnx, [ckpt_dir, onnx_dir], infoOnnx)
             
-            with gr.TabItem("Settings"):
+            with gr.TabItem(i18n("资源")):
+            
+                easy_infer.download_model()
+                easy_infer.download_backup()
+                easy_infer.download_dataset(trainset_dir4)
+            
+            with gr.TabItem(i18n("设置")):
                 with gr.Row():
                     gr.Markdown(value=
-                                "Pitch settings"
+                                i18n("音调设置")
                                 )
                     noteshertz = gr.Checkbox(
-                        label       = "Whether to use note names instead of their hertz value. E.G. [C5, D6] instead of [523.25, 1174.66]Hz",
+                        label       = i18n("是否使用音符名称而不是它们的赫兹值。例如，使用[C5，D6]代替[523.25，1174.66]赫兹。"),
                         value       = rvc_globals.NotesOrHertz,
                         interactive = True,
                     )
@@ -2281,13 +2310,26 @@ def GradioRun(app):
     concurrency_count = 511
     max_size = 1022
 
-    app.queue(concurrency_count=concurrency_count, max_size=max_size).launch(
+    if (
+        config.iscolab or config.paperspace
+    ):  
+        app.queue(concurrency_count=concurrency_count, max_size=max_size).launch(
         server_name="0.0.0.0",
         inbrowser=not config.noautoopen,
         server_port=config.listen_port,
         quiet=True,
+        favicon_path="./icon.png",
         share=share_gradio_link,
-    )
+        )
+    else:
+        app.queue(concurrency_count=concurrency_count, max_size=max_size).launch(
+        server_name="0.0.0.0",
+        inbrowser=not config.noautoopen,
+        server_port=config.listen_port,
+        quiet=True,
+        favicon_path=".\icon.png",
+        share=share_gradio_link,
+        )
 
 #endregion
 
