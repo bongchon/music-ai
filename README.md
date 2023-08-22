@@ -1,6 +1,34 @@
+# 8/17 Changelog
+- First model + index preloads on boot so you can inference immediately (someguy.mp3 is now the default file too)
+- Index search bug where it would always expect eXXX_sXXX pattern is fixed
+- Batch inference overhauls in layout and exporting now directly exports as the filetype
+- Hertz is the default unit for pitch ranges now + it uses global setting on boot
+- Misc translation adjustments to be more concise and minor extra error handling
+- Inference prints out progress to the console
+
+# 8/15 Changelog
+- Refactor entire inference interface to be much more user friendly
+- Make rmvpe+ default (this sets the specific pitch range of 50-1100hz like all other methods do)
+- Other misc translation adjustments
+- Error handling for when torch hasn't fully loaded + mismatch version index
+
+# 8/6 Changelog
+- Completely rewrote code for training related stripts, `train_nsf_sim_cache_sid_load_pretrain.py`, `trainset_preprocess_pipeline_print.py`, etc
+- Got rid of CSV database (mostly, still use STOP.csv cause Popen is trash and can't access a global var file when it is changed, for some reason)
+- Training is faster now (cool)
+- Now auto-indexing involves path like `logs/MODEL/INDEX`, not `./logs/MODEL/INDEX`
+- Now you can specify desired Gradio theme without trying to find it in `infer-web.py`! For detailed instructions view `go-web.bat` file.
+
+# 8/1 Changelog
+- Completely rewrote the code for `infer-web.py` to be more optimized.
+- Added minor optimizations in `my_utils.py`, as well as a new function to gauge if a file is long enough to train with (0.76s)
+- Due to optimization, inferencing seems to be decently faster, while training seems to be marginally faster.
+- The launch speed is increased due to lazy importing heavy modules and libraries.
+- Requirements.txt builds properly on non-windows again + plus fixed a versioning conflict with protobuf
+
 # 7/28 Changelog:
-- Undo SQL change for the sake of stability, uses csv now
-- Merging checkpoints bug has been resolved
+- Merging checkpoints bug has been resolved.
+- Revoked from using **SQL** databases back to **CSV** data storage for less trouble on colab.
 
 # 7/26 Changelog:
 - Fixed the cli inferencing traceback.
@@ -21,7 +49,7 @@
 - Unnecessary radios have been replaced with checkboxes.
 
 # 7/22 Changelog:
-- Experimental Formant Shift using StftPitchShift(tried using praat with praatio but to no avail)
+- Experimental Formant Shift using StftPitchShift (tried using praat with praatio but to no avail)
 - Added `Stop Training` button when training, no need to restart RVC every time you want to stop the training of a model!
 - Auto-detect Index path for models selected + Auto-detect paths, no more default values like this: `E:\codes\py39\vits_vc_gpu_train\logs\mi-test-1key\total_fea.npy`, We're getting Root Dir and subfolders using 
 ```python 
@@ -272,7 +300,7 @@ You are currently in 'INFER':
     arg 12) feature index ratio: 0.78 (0-1)
     arg 13) Voiceless Consonant Protection (Less Artifact): 0.33 (Smaller number = more protection. 0.50 means Dont Use.)
 
-Example: mi-test.pth saudio/Sidney.wav myTest.wav logs/mi-test/added_index.index 0 -2 harvest 160 3 0 1 0.95 0.33
+Example: mi-test.pth saudio/Sidney.wav myTest.wav logs/mi-test/added_index.index 0 -2 harvest 160 3 0 1 0.95 0.33 0.45 True 8.0 1.2
 
 INFER: <INSERT ARGUMENTS HERE OR COPY AND PASTE THE EXAMPLE>
 ```
@@ -287,23 +315,17 @@ Then click the tensorboard link it provides and refresh the data.
 ## Change Gradio Theme:
 
 - [OPTIONAL] Change Gradio's theme:
-    1. Open `infer-web.py` in any code/text editing software (e.g. `notepad++`, `notepad`, `vscode`, etc)
-  
-    2a. Press Ctrl+F and search for `with gr.Blocks(`, select the one that's not fully commented
-  
-    2b. Go to line `1842`, you'll see the `with gr.Blocks(theme='HaleyCH/HaleyCH_Theme') as app:`
-  
-    3. Go to [Gradio Theme Gallery](https://huggingface.co/spaces/gradio/theme-gallery):
+  1. Go to [Gradio Theme Gallery](https://huggingface.co/spaces/gradio/theme-gallery):
        
-    3.1 Select any theme you like (e.g. [this one](https://huggingface.co/spaces/freddyaboulton/dracula_revamped))
+  2. Select any theme you like (e.g. [this one](https://huggingface.co/spaces/freddyaboulton/dracula_revamped))
   
-    3.2 Look at the top of the page
+  3. Look at the top of the page
   
     ![image](https://github.com/alexlnkp/Mangio-RVC-Tweaks/assets/79400603/59e3e6a9-bdda-4ede-8161-00ee957c1715)
 
-    3.3 Copy theme variable(in this case, it's `theme='freddyaboulton/dracula_revamped'`)
+  4. Copy theme variable(in this case, it's `theme='freddyaboulton/dracula_revamped'`)
   
-    4. Replace `theme='HaleyCH/HaleyCH_Theme'` in `infer-web.py` with any value of a theme from [Gradio Theme Gallery](https://huggingface.co/spaces/gradio/theme-gallery)
+  5. Replace the THEME variable in the `go-web.bat` file with chosen theme. In this case, make it like this: `SET THEME="freddyaboulton/dracula_revamped"`
 
 
 # Formant Shift Explanation

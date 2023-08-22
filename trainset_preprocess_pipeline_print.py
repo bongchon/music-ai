@@ -14,7 +14,7 @@ from slicer2 import Slicer
 import librosa, traceback
 from scipy.io import wavfile
 import multiprocessing
-from my_utils import load_audio
+from my_utils import load_audio, check_audio_duration
 import tqdm
 
 DoFormant = False
@@ -22,7 +22,7 @@ Quefrency = 1.0
 Timbre = 1.0
 
 mutex = multiprocessing.Lock()
-f = open("%s/preprocess.log" % exp_dir, "a+")
+f = open(f"{exp_dir}/preprocess.log", "a+")
 
 
 def println(strr):
@@ -80,28 +80,37 @@ class PreProcess:
         )
 
     def pipeline(self, path, idx0):
+        
+        file_extension = path.split('.')[-1]
+        supported_file_extensions = {'wav', 'mp3', 'flac', 'ogg', 'opus',
+                                    'm4a', 'mp4', 'aac', 'alac', 'wma',
+                                    'aiff', 'webm', 'ac3'}
+        
         try:
-            audio = load_audio(path, self.sr, DoFormant, Quefrency, Timbre)
-            # zero phased digital filter cause pre-ringing noise...
-            # audio = signal.filtfilt(self.bh, self.ah, audio)
-            audio = signal.lfilter(self.bh, self.ah, audio)
+            if file_extension in supported_file_extensions:
+                if not check_audio_duration(path): return
+                audio = load_audio(path, self.sr, DoFormant=False)
+                # zero phased digital filter cause pre-ringing noise...
+                # audio = signal.filtfilt(self.bh, self.ah, audio)
+                audio = signal.lfilter(self.bh, self.ah, audio)
 
-            idx1 = 0
-            for audio in self.slicer.slice(audio):
-                i = 0
-                while 1:
-                    start = int(self.sr * (self.per - self.overlap) * i)
-                    i += 1
-                    if len(audio[start:]) > self.tail * self.sr:
+                idx1 = 0
+                for audio in self.slicer.slice(audio):
+                    frame_start_points = range(0, len(audio), int(self.sr * (self.per - self.overlap)))
+                    
+                    for _, start in enumerate(frame_start_points):
+                        if len(audio[start:]) <= self.tail * self.sr:
+                            tmp_audio = audio[start:]
+                            idx1 += 1
+                            break
+
                         tmp_audio = audio[start : start + int(self.per * self.sr)]
                         self.norm_write(tmp_audio, idx0, idx1)
                         idx1 += 1
-                    else:
-                        tmp_audio = audio[start:]
-                        idx1 += 1
-                        break
-                self.norm_write(tmp_audio, idx0, idx1)
-            # println("%s->Suc." % path)
+                    self.norm_write(tmp_audio, idx0, idx1)
+                # println("%s->Suc." % path)
+            else:
+                print(f"Unsupported audio format! - {path.split('/')[-1]}")
         except:
             println("%s->%s" % (path, traceback.format_exc()))
 

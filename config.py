@@ -7,8 +7,8 @@ from multiprocessing import cpu_count
 global usefp16
 usefp16 = False
 
-
-def use_fp32_config():
+def decide_fp_config():
+    global usefp16
     usefp16 = False
     device_capability = 0
     if torch.cuda.is_available():
@@ -69,7 +69,6 @@ def use_fp32_config():
         )
     return (usefp16, device_capability)
 
-
 class Config:
     def __init__(self):
         self.device = "cuda:0"
@@ -85,6 +84,7 @@ class Config:
             self.noautoopen,
             self.paperspace,
             self.is_cli,
+            self.grtheme,
         ) = self.arg_parse()
 
         self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
@@ -114,6 +114,15 @@ class Config:
             action="store_true",
             help="Use the CLI instead of setting up a gradio UI. This flag will launch an RVC text interface where you can execute functions from infer-web.py!",
         )
+
+        parser.add_argument(
+                    "-t",
+                    "--theme",
+            help    = "Theme for Gradio. Format - `JohnSmith9982/small_and_pretty` (no backticks)",
+            default = "gradio/soft",
+            type    = str
+        )
+        
         cmd_opts = parser.parse_args()
 
         cmd_opts.port = cmd_opts.port if 0 <= cmd_opts.port <= 65535 else 7865
@@ -126,6 +135,7 @@ class Config:
             cmd_opts.noautoopen,
             cmd_opts.paperspace,
             cmd_opts.is_cli,
+            cmd_opts.theme,
         )
 
     # has_mps is only available in nightly pytorch (for now) and MasOS 12.3+.
@@ -149,13 +159,13 @@ class Config:
                 or "P40" in self.gpu_name.upper()
                 or "1060" in self.gpu_name
                 or "1070" in self.gpu_name
-                or "1080" in self.gpu_name
+                # or "1080" in self.gpu_name / This is commented out because fp16 apparently runs fast on 1080
             ):
                 print("Found GPU", self.gpu_name, ", force to fp32")
                 self.is_half = False
             else:
                 print("Found GPU", self.gpu_name)
-                use_fp32_config()
+                decide_fp_config()
             self.gpu_mem = int(
                 torch.cuda.get_device_properties(i_device).total_memory
                 / 1024
@@ -169,15 +179,15 @@ class Config:
                 with open("trainset_preprocess_pipeline_print.py", "w") as f:
                     f.write(strr)
         elif self.has_mps():
-            print("No supported Nvidia GPU found, use MPS instead")
+            print("No supported Nvidia GPU found, using MPS instead")
             self.device = "mps"
             self.is_half = False
-            use_fp32_config()
+            decide_fp_config()
         else:
-            print("No supported Nvidia GPU found, use CPU instead")
+            print("No supported Nvidia GPU found, using CPU instead")
             self.device = "cpu"
             self.is_half = False
-            use_fp32_config()
+            decide_fp_config()
 
         if self.n_cpu == 0:
             self.n_cpu = cpu_count()
