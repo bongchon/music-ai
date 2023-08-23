@@ -15,7 +15,7 @@ SET PORT="7897"
 :: Copy just the part in apostrophes: ''. e.g. bethecloud/storj_theme
 :: Now modify the line below and paste that part with replacement in quotation mark. e.g. "bethecloud/storj_theme"
 :: In the end you should have `SET THEME="bethecloud/storj_theme"`
-SET THEME="gradio/soft"
+SET THEME="freddyaboulton/dracula_revamped"
 
 :: Echo the current settings.
 ECHO Current Settings:

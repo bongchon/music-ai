@@ -195,7 +195,7 @@ def vc_single(
     start_time = time.time()
     global tgt_sr, net_g, vc, hubert_model, version
     if not input_audio_path0 and not input_audio_path1:
-        return "You need to upload an audio", None
+        return "No audio defined. Please select an audio from the dropdown or input a file path (/path/to/audio.wav)", None
 
     if (not os.path.exists(input_audio_path0)) and (not os.path.exists(os.path.join(now_dir, input_audio_path0))):
         return "Audio was not properly selected or doesn't exist", None
@@ -208,13 +208,13 @@ def vc_single(
     f0_up_key = int(f0_up_key)
     
     if rvc_globals.NotesOrHertz and f0_method != 'rmvpe':
-        f0_min = note_to_hz(note_min) if note_min else 50
-        f0_max = note_to_hz(note_max) if note_max else 1100
+        f0_min = note_to_hz(note_min) if note_min else 85
+        f0_max = note_to_hz(note_max) if note_max else 1045
         print(f"Converted min pitch freq - {f0_min}\n"
               f"Converted max pitch freq - {f0_max}")
     else:
-        f0_min = f0_min or 50
-        f0_max = f0_max or 1100
+        f0_min = f0_min or 85
+        f0_max = f0_max or 1045
     try:
         print(f"Attempting to load {input_audio_path1}....")
         audio = load_audio(input_audio_path1,
@@ -235,7 +235,7 @@ def vc_single(
         try:
             if_f0 = cpt.get("f0", 1)
         except NameError:
-            message = "Model was not properly selected"
+            message = "Model was not properly selected, please attempt to reselect model to reload"
             print(message)
             return message, None
         
@@ -313,13 +313,13 @@ def vc_multi(
     note_max,
 ):
     if rvc_globals.NotesOrHertz and f0_method != 'rmvpe':
-        f0_min = note_to_hz(note_min) if note_min else 50
-        f0_max = note_to_hz(note_max) if note_max else 1100
+        f0_min = note_to_hz(note_min) if note_min else 85
+        f0_max = note_to_hz(note_max) if note_max else 1045
         print(f"Converted min pitch freq - {f0_min}\n"
               f"Converted max pitch freq - {f0_max}")
     else:
-        f0_min = f0_min or 50
-        f0_max = f0_max or 1100
+        f0_min = f0_min or 75
+        f0_max = f0_max or 1045
 
     try:
         dir_path, opt_root = [x.strip(" ").strip('"').strip("\n").strip('"').strip(" ") for x in [dir_path, opt_root]]
@@ -1358,7 +1358,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     minimum=0,
                                     maximum=1,
                                     label=i18n("检索特征占比"),
-                                    value=0.75,
+                                    value=0.60,
                                     interactive=True,
                                 )
                                 refresh_button.click(
@@ -1389,11 +1389,11 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     interactive=True,
                                 )
                                 crepe_hop_length = gr.Slider(
-                                    minimum=1,
+                                    minimum=16,
                                     maximum=512,
                                     step=1,
                                     label=i18n("crepe_hop_length"),
-                                    value=120,
+                                    value=128,
                                     interactive=True,
                                     visible=False,
                                 )
@@ -1401,7 +1401,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     minimum=0,
                                     maximum=7,
                                     label=i18n(">=3则使用对harvest音高识别的结果使用中值滤波，数值为滤波半径，使用可以削弱哑音"),
-                                    value=3,
+                                    value=7,
                                     step=1,
                                     interactive=True,
                                 )    
@@ -1494,7 +1494,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     label=i18n(
                                         "保护清辅音和呼吸声，防止电音撕裂等artifact，拉满0.5不开启，调低加大保护力度但可能降低索引效果"
                                     ),
-                                    value=0.33,
+                                    value=0.10,
                                     step=0.01,
                                     interactive=True,
                                 )
@@ -1621,7 +1621,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     minimum=0,
                                     maximum=1,
                                     label=i18n("检索特征占比"),
-                                    value=0.75,
+                                    value=0.60,
                                     interactive=True,
                                 )
                             with gr.Row():
@@ -1893,11 +1893,11 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                             )
                             
                             extraction_crepe_hop_length = gr.Slider(
-                                minimum=1,
+                                minimum=16,
                                 maximum=512,
-                                step=1,
+                                step=8,
                                 label=i18n("crepe_hop_length"),
-                                value=64,
+                                value=128,
                                 interactive=True,
                                 visible=False,
                             )
@@ -1924,10 +1924,10 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                     with gr.Row():
                         save_epoch10 = gr.Slider(
                             minimum=1,
-                            maximum=50,
+                            maximum=100,
                             step=1,
                             label=i18n("保存频率save_every_epoch"),
-                            value=5,
+                            value=10,
                             interactive=True,
                             visible=True,
                         )
@@ -1936,12 +1936,12 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                             maximum=10000,
                             step=1,
                             label=i18n("总训练轮数total_epoch"),
-                            value=20,
+                            value=500,
                             interactive=True,
                         )
                         batch_size12 = gr.Slider(
                             minimum=1,
-                            maximum=40,
+                            maximum=64,
                             step=1,
                             label=i18n("每张显卡的batch_size"),
                             value=default_batch_size,
@@ -1954,7 +1954,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                         )
                         if_cache_gpu17 = gr.Checkbox(
                             label="Cache all training sets to GPU memory. Caching small datasets (less than 10 minutes) can speed up training, but caching large datasets will consume a lot of GPU memory and may not provide much speed improvement",
-                            value=False,
+                            value=True,
                             interactive=True,
                         )
                         if_save_every_weights18 = gr.Checkbox(
