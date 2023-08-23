@@ -103,7 +103,7 @@ if torch.cuda.is_available() or ngpu != 0:
             mem.append(int(torch.cuda.get_device_properties(i).total_memory / 1e9 + 0.4))
 
 gpu_info = "\n".join(gpu_infos) if if_gpu_ok and gpu_infos else i18n("很遗憾您这没有能用的显卡来支持您训练")
-default_batch_size = min(mem) // 2 if if_gpu_ok and gpu_infos else 1
+default_batch_size = min(mem) // 1.5 if if_gpu_ok and gpu_infos else 1
 gpus = "-".join(i[0] for i in gpu_infos)
 
 hubert_model = None
