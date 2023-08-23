@@ -222,27 +222,27 @@ def vc_single(
                            DoFormant=rvc_globals.DoFormant,
                            Quefrency=rvc_globals.Quefrency,
                            Timbre=rvc_globals.Timbre)
-        
+
         audio_max = np.abs(audio).max() / 0.95
         if audio_max > 1:
             audio /= audio_max
-            
+
         times = [0, 0, 0]
         if not hubert_model:
             print("Loading HuBERT for the first time...")
             load_hubert()
-        
+
         try:
             if_f0 = cpt.get("f0", 1)
         except NameError:
             message = "Model was not properly selected, please attempt to reselect model to reload"
             print(message)
             return message, None
-        
+
         file_index = (
             file_index.strip(" ").strip('"').strip("\n").strip('"').strip(" ").replace("trained", "added")
         ) if file_index != "" else file_index2
-        
+
         try:
             audio_opt = vc.pipeline(
                 hubert_model,
@@ -275,20 +275,25 @@ def vc_single(
             message = "RVC libraries are still loading. Please try again in a few seconds."
             print(message)
             return message, None
-        
+
         if tgt_sr != resample_sr >= 16000:
             tgt_sr = resample_sr
-            
+
         index_info = "Using index:%s." % file_index if os.path.exists(file_index) else "Index not used."
 
         end_time = time.time()
-        total_time = end_time - start_time
+        total_time = round(end_time - start_time, 1)  # Rounding total_time
 
-        return f"Success.\n {index_info}\nTime:\n npy:{times[0]}, f0:{times[1]}, infer:{times[2]}\nTotal Time: {total_time} seconds", (tgt_sr, audio_opt)
+        # Rounding times values
+        rounded_times = [round(time, 1) for time in times]
+
+        return f"Success.\n {index_info}\nTime:\n npy:{rounded_times[0]}, f0:{rounded_times[1]}, infer:{rounded_times[2]}\nTotal Time: {total_time} seconds", (
+        tgt_sr, audio_opt)
     except:
         info = traceback.format_exc()
         print(info)
         return info, (None, None)
+
 
 def vc_multi(
     sid,
