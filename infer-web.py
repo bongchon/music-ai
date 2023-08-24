@@ -318,13 +318,13 @@ def vc_multi(
     note_max,
 ):
     if rvc_globals.NotesOrHertz and f0_method != 'rmvpe':
-        f0_min = note_to_hz(note_min) if note_min else 85
-        f0_max = note_to_hz(note_max) if note_max else 1045
+        f0_min = note_to_hz(note_min) if note_min else 50
+        f0_max = note_to_hz(note_max) if note_max else 1100
         print(f"Converted min pitch freq - {f0_min}\n"
               f"Converted max pitch freq - {f0_max}")
     else:
-        f0_min = f0_min or 75
-        f0_max = f0_max or 1045
+        f0_min = f0_min or 50
+        f0_max = f0_max or 1100
 
     try:
         dir_path, opt_root = [x.strip(" ").strip('"').strip("\n").strip('"').strip(" ") for x in [dir_path, opt_root]]
@@ -1299,8 +1299,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
 
     default_weight = names[0] if names else '' # Set the first found weight as the preloaded model
 
-    with gr.Blocks(theme=UTheme, title='Mangio-RVC-Web 💻') as app:
-        gr.HTML("<h1> The Mangio-RVC-Fork 💻 </h1>")
+    with gr.Blocks(theme=UTheme, title='F-RVC-exp 🗿') as app:
+        gr.HTML("<h1> F-RVC-exp 🗿 </h1>")
         # gr.Markdown(
         #     value=i18n(
         #         "本软件以MIT协议开源, 作者不对软件具备任何控制力, 使用软件者、传播软件导出的声音者自负全责. <br>如不认可该条款, 则不能使用或引用软件包内任何代码和文件. 详见根目录<b>使用需遵守的协议-LICENSE.txt</b>."
@@ -1396,9 +1396,9 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 crepe_hop_length = gr.Slider(
                                     minimum=16,
                                     maximum=512,
-                                    step=1,
+                                    step=8,
                                     label=i18n("crepe_hop_length"),
-                                    value=128,
+                                    value=64,
                                     interactive=True,
                                     visible=False,
                                 )
@@ -1406,7 +1406,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     minimum=0,
                                     maximum=7,
                                     label=i18n(">=3则使用对harvest音高识别的结果使用中值滤波，数值为滤波半径，使用可以削弱哑音"),
-                                    value=7,
+                                    value=4,
                                     step=1,
                                     interactive=True,
                                 )    
@@ -1414,8 +1414,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 minpitch_slider = gr.Slider(
                                     label       = "Min pitch",
                                     info        = "Specify minimal pitch for inference [HZ]",
-                                    step        = 0.1,
-                                    minimum     = 1,
+                                    step        = 5,
+                                    minimum     = 20,
                                     scale       = 0,
                                     value       = 85,
                                     maximum     = 16000,
@@ -1433,8 +1433,8 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                 maxpitch_slider = gr.Slider(
                                     label       = "Max pitch",
                                     info        = "Specify max pitch for inference [HZ]",
-                                    step        = 0.1,
-                                    minimum     = 1,
+                                    step        = 5,
+                                    minimum     = 20,
                                     scale       = 0,
                                     value       = 1040,
                                     maximum     = 16000,
@@ -1484,13 +1484,14 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                                     label=i18n("后处理重采样至最终采样率，0为不进行重采样"),
                                     value=0,
                                     step=1,
-                                    interactive=True,
+                                    interactive=False,
+                                    visible=False,
                                 )
                                 rms_mix_rate0 = gr.Slider(
                                     minimum=0,
                                     maximum=1,
                                     label=i18n("输入源音量包络替换输出音量包络融合比例，越靠近1越使用输出包络"),
-                                    value=0.25,
+                                    value=0.1,
                                     interactive=True,
                                 )
                                 protect0 = gr.Slider(

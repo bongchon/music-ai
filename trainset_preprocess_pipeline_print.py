@@ -38,10 +38,10 @@ class PreProcess:
         self.slicer = Slicer(
             sr=sr,
             threshold=-40,
-            min_length=1000,
+            min_length=1500,
             min_interval=100,
-            hop_size=5,
-            max_sil_kept=150,
+            hop_size=10,
+            max_sil_kept=80,
         )
         self.sr = sr
         self.bh, self.ah = signal.butter(N=5, Wn=48, btype="high", fs=self.sr)
