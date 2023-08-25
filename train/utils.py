@@ -203,6 +203,9 @@ def summarize(
 def latest_checkpoint_path(dir_path, regex="G_*.pth"):
     f_list = glob.glob(os.path.join(dir_path, regex))
     f_list.sort(key=lambda f: int("".join(filter(str.isdigit, f))))
+    if not f_list:  # Check if the list is empty
+        print("No checkpoint files found.")
+        return None
     x = f_list[-1]
     print(x)
     return x

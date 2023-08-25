@@ -1831,7 +1831,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                     sr2 = gr.Radio(
                         label=i18n("目标采样率"),
                         choices=["40k", "48k", "32k"],
-                        value="48k",
+                        value="40k",
                         interactive=True,
                     )
                     if_f0_3 = gr.Checkbox(
@@ -1848,7 +1848,7 @@ def GradioSetup(UTheme=gr.themes.Soft()):
                     )
                     np7 = gr.Slider(
                         minimum=1,
-                        maximum=config.n_cpu,
+                        maximum=min(12, int(np.ceil(config.n_cpu * 0.4))),
                         step=1,
                         label=i18n("提取音高和处理数据使用的CPU进程数"),
                         value=int(np.ceil(config.n_cpu * 0.4)),
